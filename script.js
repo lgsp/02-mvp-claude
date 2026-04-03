@@ -1,6 +1,54 @@
 /* ================================================================
-   KaTeX
+   AUTHENTIFICATION — SHA-256 (mot de passe : 02-02-geom-01-MVP)
 ================================================================ */
+// Hash SHA-256 of "02-02-geom-01-MVP"
+const AUTH_HASH = '3094216c404785aa906ba92d7ab3d4f4802860f2150c6a406f751f58dd3cfcac';
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function doAuth() {
+  const name = document.getElementById('auth-name').value.trim();
+  const pw   = document.getElementById('auth-pw').value;
+  const err  = document.getElementById('auth-error');
+
+  if (!name) {
+    err.textContent = 'Veuillez saisir votre prénom.';
+    err.classList.add('visible'); return;
+  }
+  const hash = await sha256(pw);
+  if (hash !== AUTH_HASH) {
+    err.textContent = 'Mot de passe incorrect.';
+    err.classList.add('visible');
+    document.getElementById('auth-pw').value = '';
+    return;
+  }
+  // Auth OK
+  err.classList.remove('visible');
+  const overlay = document.getElementById('auth-overlay');
+  overlay.style.transition = 'opacity .4s';
+  overlay.style.opacity = '0';
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    const page = document.getElementById('main-page');
+    page.style.display = '';
+    page.style.opacity = '0';
+    page.style.transition = 'opacity .35s';
+    requestAnimationFrame(() => { page.style.opacity = '1'; });
+  }, 400);
+}
+
+// Allow Enter key to submit
+document.addEventListener('DOMContentLoaded', () => {
+  ['auth-name','auth-pw'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if(e.key==='Enter') doAuth(); });
+  });
+});
+
+
 document.addEventListener("DOMContentLoaded",()=>{
   rk(document.body);
   initAll();
@@ -754,101 +802,523 @@ function resetChrono(){cS=0;cP=false;document.getElementById('cpbtn').textConten
 function updCD(){const m=String(Math.floor(cS/60)).padStart(2,'0'),s=String(cS%60).padStart(2,'0');document.getElementById('chrono-display').textContent=`${m}:${s}`;}
 
 /* ================================================================
-   QCM
+   QCM — 10 questions avec bilan final et CTA Calendly
 ================================================================ */
-let qS=0,qT=0;
+const CALENDLY_URL = 'https://calendly.com/didaskalosmanthanon/point-parents-presentation-de-l-outil-15-min';
+
+let qS=0,qT=0,qAnswered=0;
+
 function generateQCM(){
-  qS=0;qT=0;updQS();
+  qS=0;qT=0;qAnswered=0;updQS();
+  // Remove previous result banner if any
+  const old=document.getElementById('qcm-result-banner');
+  if(old)old.remove();
   const c=document.getElementById('qcm-container');c.innerHTML='';
   buildQs().forEach((q,i)=>c.appendChild(renderQ(q,i)));
   rk(c);
 }
 function updQS(){document.getElementById('qcm-score').textContent=`${qS} / ${qT}`;}
 
+/* ── Question bank : 20 questions, on en tire 10 aléatoirement ── */
 function buildQs(){
-  const qs=[];
+  const pool=[];
 
-  // Q1 — Coordonnées de AB⃗
-  const ax=ri(-4,4),ay=ri(-3,3),bx=ri(-4,4),by=ri(-3,3);
+  // Q-1 — Coordonnées de AB⃗ (randomisé)
+  const ax=ri(-5,4),ay=ri(-4,4),bx=ri(-4,5),by=ri(-4,4);
   const dx=bx-ax,dy=by-ay;
-  qs.push({
+  pool.push({
     q:`Si \\(A(${ax}\\,;\\,${ay})\\) et \\(B(${bx}\\,;\\,${by})\\), quelles sont les coordonnées de \\(\\overrightarrow{AB}\\)&nbsp;?`,
-    choices:[`\\(\\binom{${dx}}{${dy}}\\)`,`\\(\\binom{${-dx}}{${-dy}}\\)`,`\\(\\binom{${ax}}{${ay}}\\)`],
+    choices:[
+      `\\(\\binom{${dx}}{${dy}}\\)`,
+      `\\(\\binom{${-dx}}{${-dy}}\\)`,
+      `\\(\\binom{${bx}}{${by}}\\)`,
+      `\\(\\binom{${-bx}}{${-by}}\\)`
+    ],
     correct:0,
-    explanation:`\\(\\overrightarrow{AB}\\binom{x_B-x_A}{y_B-y_A}=\\binom{${bx}-${ax}}{${by}-${ay}}=\\binom{${dx}}{${dy}}\\).`
+    explanation:`\\(\\overrightarrow{AB}\\binom{x_B-x_A}{y_B-y_A}=\\binom{${bx}-(${ax})}{${by}-(${ay})}=\\binom{${dx}}{${dy}}\\).`
   });
 
-  // Q2 — Norme
+  // Q-2 — Norme
   const ux=ri(-4,4),uy=ri(-4,4),n2=ux*ux+uy*uy;
-  qs.push({
+  pool.push({
     q:`Quelle est la norme de \\(\\vec{u}\\binom{${ux}}{${uy}}\\)&nbsp;?`,
-    choices:[`\\(\\sqrt{${n2}}\\approx ${Math.sqrt(n2).toFixed(3)}\\)`,`\\(${Math.abs(ux)+Math.abs(uy)}\\)`,`\\(${n2}\\)`],
+    choices:[
+      `\\(\\sqrt{${n2}}\\approx ${Math.sqrt(n2).toFixed(2)}\\)`,
+      `\\(${Math.abs(ux)+Math.abs(uy)}\\)`,
+      `\\(${n2}\\)`,
+      `\\(${n2 * n2}\\)`
+    ],
     correct:0,
-    explanation:`\\(\\|\\vec{u}\\|=\\sqrt{${ux}^2+${uy}^2}=\\sqrt{${n2}}\\approx ${Math.sqrt(n2).toFixed(3)}\\).`
+    explanation:`\\(\\|\\vec{u}\\|=\\sqrt{${ux}^2+${uy}^2}=\\sqrt{${n2}}\\approx ${Math.sqrt(n2).toFixed(2)}\\).`
   });
 
-  // Q3 — Somme
+  // Q-3 — Somme de deux vecteurs
   const u1x=ri(-3,3),u1y=ri(-3,3),v1x=ri(-3,3),v1y=ri(-3,3);
-  qs.push({
-    q:`\\(\\vec{u}\\binom{${u1x}}{${u1y}}+\\vec{v}\\binom{${v1x}}{${v1y}}=\\)?`,
-    choices:[`\\(\\binom{${u1x+v1x}}{${u1y+v1y}}\\)`,`\\(\\binom{${u1x*v1x}}{${u1y*v1y}}\\)`,`\\(\\binom{${u1x-v1x}}{${u1y-v1y}}\\)`],
+  pool.push({
+    q:`Soient les vecteurs \\(\\vec{u}\\binom{${u1x}}{${u1y}}\\) et \\(\\vec{v}\\binom{${v1x}}{${v1y}}\\) alors \\(\\vec{u} + \\vec{v} = \\)?`,
+    choices:[
+      `\\(\\binom{${u1x+v1x}}{${u1y+v1y}}\\)`,
+      `\\(\\binom{${u1x*v1x}}{${u1y*v1y}}\\)`,
+      `\\(\\binom{${u1x-v1x}}{${u1y-v1y}}\\)`,
+      `\\(\\binom{${u1x+v1x}}{${u1y*v1y}}\\)`
+    ],
     correct:0,
     explanation:`On additionne composante par composante : \\(\\binom{${u1x}+${v1x}}{${u1y}+${v1y}}=\\binom{${u1x+v1x}}{${u1y+v1y}}\\).`
   });
 
-  // Q4 — Déterminant / colinéarité
-  const p=ri(1,4),q=ri(1,4);
-  qs.push({
-    q:`\\(\\vec{u}\\binom{${p}}{${q}}\\) et \\(\\vec{v}\\binom{${2*p}}{${2*q}}\\) sont-ils colinéaires&nbsp;?`,
-    choices:['Oui','Non'],
+  // Q-4 — Différence de deux vecteurs
+  const u2x=ri(-3,3),u2y=ri(-3,3),v2x=ri(-3,3),v2y=ri(-3,3);
+  pool.push({
+    q:`Soient les vecteur \\(\\vec{u}\\binom{${u2x}}{${u2y}}\\) et \\(\\vec{v}\\binom{${v2x}}{${v2y}}\\) alors \\(\\vec{u} - \\vec{v} = \\)?`,
+    choices:[
+      `\\(\\binom{${u2x-v2x}}{${u2y-v2y}}\\)`,
+      `\\(\\binom{${u2x+v2x}}{${u2y+v2y}}\\)`,
+      `\\(\\binom{${v2x-u2x}}{${v2y-u2y}}\\)`,
+      `\\(\\binom{${v2x+u2x}}{${v2y-u2y}}\\)`
+    ],
     correct:0,
-    explanation:`\\(\\det(\\vec{u},\\vec{v})=${p}\\times${2*q}-${q}\\times${2*p}=${2*p*q-2*p*q}=0\\) → colinéaires (\\(\\vec{v}=2\\vec{u}\\)).`
+    explanation:`On soustrait composante par composante : \\(\\binom{${u2x}-${v2x}}{${u2y}-${v2y}}=\\binom{${u2x-v2x}}{${u2y-v2y}}\\).`
   });
 
-  // Q5 — Alignement
-  const a5x=ri(-2,1),a5y=ri(-1,2);
-  const k5=ri(2,4);
+  // Q-5 — Produit par un scalaire
+  const k3=ri(2,5),u3x=ri(-3,3),u3y=ri(-3,3);
+  pool.push({
+    q:`Soit le vecteur \\(\\vec{u}\\binom{${u3x}}{${u3y}}\\) alors \\(${k3}\\,\\vec{u} = \\)?`,
+    choices:[
+      `\\(\\binom{${k3*u3x}}{${k3*u3y}}\\)`,
+      `\\(\\binom{${k3+u3x}}{${k3+u3y}}\\)`,
+      `\\(\\binom{${u3x}}{${u3y}}\\)`,
+      `\\(\\binom{${u3x-k3}}{${u3y-k3}}\\)`
+    ],
+    correct:0,
+    explanation:`On multiplie chaque composante par \\(${k3}\\) : \\(\\binom{${k3}\\times${u3x}}{${k3}\\times${u3y}}=\\binom{${k3*u3x}}{${k3*u3y}}\\).`
+  });
+
+  // Q-6 — Colinéarité (oui, vecteurs proportionnels)
+  const p=ri(1,4),q_=ri(1,4);
+  pool.push({
+    q:`Soient les vecteurs \\(\\vec{u}\\binom{${p}}{${q_}}\\) et \\(\\vec{v}\\binom{${2*p}}{${2*q_}}\\) sont-ils colinéaires&nbsp;?`,
+    choices:[
+      'Oui car \\(\\det(\\vec{u}, \\vec{v}) = 0\\)',
+      'Non car \\(\\det(\\vec{u}, \\vec{v}) \\neq 0\\)',
+      'Non car \\(\\det(\\vec{u}, \\vec{v}) = 0\\)',
+      'Oui car \\(\\det(\\vec{u}, \\vec{v}) \\neq 0\\)'
+    ],
+    correct:0,
+    explanation:`\\(\\det(\\vec{u},\\vec{v})=${p}\\times${2*q_}-${q_}\\times${2*p}=${2*p*q_-2*p*q_}=0\\) → colinéaires (\\(\\vec{v}=2\\vec{u}\\)).`
+  });
+
+  // Q-7 — Colinéarité (non, vecteurs quelconques)
+  const r1=ri(1,4),r2=ri(1,4); // garantit det ≠ 0
+  const s1=r1+ri(1,3),s2=r2+ri(1,3);
+  const detRs=r1*s2-r2*s1;
+  pool.push({
+    q:`Soient les vecteurs \\(\\vec{u}\\binom{${r1}}{${r2}}\\) et \\(\\vec{v}\\binom{${s1}}{${s2}}\\) sont-ils colinéaires&nbsp;?`,
+    choices:[
+      'Non car \\(\\det(\\vec{u},\\vec{v})\\neq 0\\)',
+      'Oui car \\(\\det(\\vec{u},\\vec{v}) = 0\\)',
+      'Oui car \\(\\det(\\vec{u},\\vec{v})\\neq 0\\)',
+      'Non car \\(\\det(\\vec{u},\\vec{v}) = 0\\)'
+    ],
+    correct:0,
+    explanation:`\\(\\det(\\vec{u},\\vec{v})=${r1}\\times${s2}-${r2}\\times${s1}=${detRs}\\neq0\\) → non colinéaires.`
+  });
+
+  // Q-8 — Alignement (oui)
+  const a5x=ri(-2,1),a5y=ri(-1,2),k5=ri(2,4);
   const b5x=a5x+1,b5y=a5y+2,c5x=a5x+k5,c5y=a5y+2*k5;
-  qs.push({
-    q:`\\(A(${a5x}\\,;\\,${a5y})\\), \\(B(${b5x}\\,;\\,${b5y})\\), \\(C(${c5x}\\,;\\,${c5y})\\) — alignés&nbsp;?`,
-    choices:['Oui','Non'],
+  pool.push({
+    q:`\\(A(${a5x}\\,;\\,${a5y})\\), \\(B(${b5x}\\,;\\,${b5y})\\), \\(C(${c5x}\\,;\\,${c5y})\\) sont-ils alignés&nbsp;?`,
+    choices:[
+      'Oui car \\(\\det(\\overrightarrow{AB},\\overrightarrow{AC}) = 0\\)',
+      'Non car \\(\\det(\\overrightarrow{AB},\\overrightarrow{AC})\\neq 0\\)',
+      'Non car \\(\\det(\\overrightarrow{AB},\\overrightarrow{AC}) = 0\\)',
+      'Oui car \\(\\det(\\overrightarrow{AB},\\overrightarrow{AC})\\neq 0\\)'
+    ],
     correct:0,
-    explanation:`\\(\\overrightarrow{AB}\\binom{${b5x-a5x}}{${b5y-a5y}}\\), \\(\\overrightarrow{AC}\\binom{${c5x-a5x}}{${c5y-a5y}}\\). det = ${(b5x-a5x)*(c5y-a5y)-(b5y-a5y)*(c5x-a5x)} = 0 → alignés.`
+    explanation:`\\(\\overrightarrow{AB}\\binom{${b5x-a5x}}{${b5y-a5y}}\\), \\(\\overrightarrow{AC}\\binom{${c5x-a5x}}{${c5y-a5y}}\\). \\(\\det=${(b5x-a5x)*(c5y-a5y)-(b5y-a5y)*(c5x-a5x)}=0\\) → alignés.`
   });
 
-  // Q6 — Milieu
-  const mAx=ri(-3,3),mAy=ri(-3,3),mBx=ri(-3,3),mBy=ri(-3,3);
+  // Q-9 — Milieu d'un segment
+  const mAx=ri(-4,3),mAy=ri(-4,3),mBx=ri(-3,4),mBy=ri(-3,4);
   const mIx=(mAx+mBx)/2,mIy=(mAy+mBy)/2;
-  qs.push({
-    q:`Milieu de \\([AB]\\) avec \\(A(${mAx}\\,;\\,${mAy})\\) et \\(B(${mBx}\\,;\\,${mBy})\\)&nbsp;?`,
-    choices:[`\\(\\left(${mIx}\\,;\\,${mIy}\\right)\\)`,`\\(\\left(${mBx-mAx}\\,;\\,${mBy-mAy}\\right)\\)`,`\\(\\left(${mAx+mBx}\\,;\\,${mAy+mBy}\\right)\\)`],
+  pool.push({
+    q:`Quelles sont les coordonnées du milieu \\(I\\) de \\([AB]\\) avec \\(A(${mAx}\\,;\\,${mAy})\\) et \\(B(${mBx}\\,;\\,${mBy})\\)&nbsp;?`,
+    choices:[
+      `\\(\\left(${mIx}\\,;\\,${mIy}\\right)\\)`,
+      `\\(\\left(${mBx-mAx}\\,;\\,${mBy-mAy}\\right)\\)`,
+      `\\(\\left(${mAx+mBx}\\,;\\,${mAy+mBy}\\right)\\)`,
+      `\\(\\left(${mAx*mBx}\\,;\\,${mAy*mBy}\\right)\\)`
+    ],
     correct:0,
     explanation:`\\(I\\!\\left(\\dfrac{${mAx}+${mBx}}{2}\\,;\\,\\dfrac{${mAy}+${mBy}}{2}\\right)=\\left(${mIx}\\,;\\,${mIy}\\right)\\).`
   });
 
-  // Q7 — Relation de Chasles
-  qs.push({
-    q:`Laquelle de ces égalités traduit la relation de Chasles pour 3 points A, B, C&nbsp;?`,
+  // Q-10 — Relation de Chasles
+  pool.push({
+    q:`Laquelle traduit la relation de Chasles pour trois points \\(A\\), \\(B\\), \\(C\\)&nbsp;?`,
     choices:[
       `\\(\\overrightarrow{AC}=\\overrightarrow{AB}+\\overrightarrow{BC}\\)`,
       `\\(\\overrightarrow{AC}=\\overrightarrow{AB}\\times\\overrightarrow{BC}\\)`,
-      `\\(\\overrightarrow{AC}=\\overrightarrow{BA}+\\overrightarrow{BC}\\)`
+      `\\(\\overrightarrow{AC}=\\overrightarrow{BA}+\\overrightarrow{BC}\\)`,
+      `\\(\\overrightarrow{AC}=\\overrightarrow{AB}-\\overrightarrow{BC}\\)`
     ],
     correct:0,
-    explanation:`La relation de Chasles est \\(\\overrightarrow{AC}=\\overrightarrow{AB}+\\overrightarrow{BC}\\) : on enchaîne les translations de A vers B, puis de B vers C.`
+    explanation:`La relation de Chasles : \\(\\overrightarrow{AC}=\\overrightarrow{AB}+\\overrightarrow{BC}\\). On enchaîne les translations \\(A\\to B\\) puis \\(B\\to C\\).`
   });
 
-  return shuffle(qs).slice(0,6);
-}
+  // Q-11 — Vecteur nul / opposé
+  pool.push({
+    q:`Que vaut \\(\\overrightarrow{AB}+\\overrightarrow{BA}\\)&nbsp;?`,
+    choices:[
+      `\\(\\vec{0}\\)`,
+      `\\(2\\,\\overrightarrow{AB}\\)`,
+      `\\(2\\overrightarrow{BA}\\)`,
+      `\\(-\\overrightarrow{BA}\\)`
+    ],
+    correct:0,
+    explanation:`\\(\\overrightarrow{BA}=-\\overrightarrow{AB}\\), donc \\(\\overrightarrow{AB}+\\overrightarrow{BA}=\\overrightarrow{AB}-\\overrightarrow{AB}=\\vec{0}\\).`
+  });
 
-function shuffle(a){
-  return a.map(q=>{
+  // Q-12 — Distance entre deux points
+  const d1x=ri(-3,0),d1y=ri(-3,0),d2x=ri(1,4),d2y=ri(1,4);
+  const ddx=d2x-d1x,ddy=d2y-d1y,dd2=ddx*ddx+ddy*ddy;
+  pool.push({
+    q:`Quelle est la distance \\(AB\\) avec \\(A(${d1x}\\,;\\,${d1y})\\) et \\(B(${d2x}\\,;\\,${d2y})\\)&nbsp;?`,
+    choices:[
+      `\\(\\sqrt{${dd2}}\\approx ${Math.sqrt(dd2).toFixed(2)}\\)`,
+      `\\(${Math.abs(ddx)+Math.abs(ddy)}\\)`,
+      `\\(${ddx}+${ddy}=${ddx+ddy}\\)`,
+      `\\(${ddx * ddx}+${ddy * ddy}=${ddx * ddx + ddy * ddy}\\)`
+    ],
+    correct:0,
+    explanation:`\\(AB=\\sqrt{(${d2x}-(${d1x}))^2+(${d2y}-(${d1y}))^2}=\\sqrt{${ddx}^2+${ddy}^2}=\\sqrt{${dd2}}\\approx${Math.sqrt(dd2).toFixed(2)}\\).`
+  });
+
+  // Q-13 — Parallélisme de droites via déterminant
+  const pp=ri(1,3),pq=ri(1,3);
+  const pr=ri(1,3)*pp,ps=ri(1,3)*pq; // AB ∥ CD car proportionnels
+  pool.push({
+    q:`Les droites \\((AB)\\) et \\((CD)\\) sont-elles parallèles si \\(\\overrightarrow{AB}\\binom{${pp}}{${pq}}\\) et \\(\\overrightarrow{CD}\\binom{${2*pp}}{${2*pq}}\\)&nbsp;?`,
+    choices:[
+      'Oui car \\(\\det(\\overrightarrow{AB},\\overrightarrow{CD})=0\\)',
+      'Non car droites sécantes',
+      'Non car \\(\\det(\\overrightarrow{AB},\\overrightarrow{CD})=0\\)',
+      'Oui car droites sécantes' 
+    ],
+    correct:0,
+    explanation:`\\(\\det( \\overrightarrow{AB},\\overrightarrow{CD}) = \\) ${pp}×${2*pq}−${pq}×${2*pp}=${pp*2*pq-pq*2*pp}=0\\) → droites parallèles (\\(\\overrightarrow{CD}=2\\overrightarrow{AB}\\)).`
+  });
+
+  // Q-14 - Milieu et symétrie centrale
+  pool.push({
+    q: `Si C est symétrique de A par rapport à B alors `,
+    choices: [
+      `B est le milieu du segment [AC] et on a \\(x_B = \\dfrac{x_C + x_A}{2}\\) et \\(y_B = \\dfrac{y_C + y_A}{2}\\)`,
+      `B est le milieu du segment [AC] et on a \\(x_B = \\dfrac{x_C - x_A}{2}\\) et \\(y_B = \\dfrac{y_C - y_A}{2}\\)`,
+      `C est le milieu du segment [AB] et on a \\(x_C = \\dfrac{x_B + x_A}{2}\\) et \\(y_C = \\dfrac{y_B + y_A}{2}\\)`,
+      `C est le milieu du segment [AB] et on a \\(x_C = \\dfrac{x_B - x_A}{2}\\) et \\(y_C = \\dfrac{y_B - y_A}{2}\\)`
+    ],
+    correct: 0,
+    explanation: `Si C est symétrique de A par rapport à B alors \\( \\overrightarrow{AB} = \\overrightarrow{BC} = \\dfrac{1}{2}\\overrightarrow{AC} \\).`
+  });
+
+  // Q-15 - Milieu et norme
+  pool.push({
+    q: `Si C est le milieu du segment [AB] alors `,
+    choices: [
+      `\\(\\overrightarrow{AC} = \\overrightarrow{CB}\\) donc \\(AC = CB\\)`,
+      `\\(\\overrightarrow{AB} = \\overrightarrow{BC}\\) donc \\(AB = BC\\)`,
+      `\\(\\overrightarrow{AC} = \\overrightarrow{AB}\\) donc \\(AC = AB\\)`,
+      `\\(\\overrightarrow{BC} = \\overrightarrow{BA}\\) donc \\(BC = BA\\)`
+    ],
+    correct: 0,
+    explanation: `Si C est le milieu du segment [AB] alors \\( \\overrightarrow{AC} = \\overrightarrow{CB} = \\dfrac{1}{2}\\overrightarrow{AB} \\).`
+  });
+
+  /// Q-16 - Combinaisons linéaires 
+  const u4x=ri(-3,3),u4y=ri(-3,3),v4x=ri(-3,3),v4y=ri(-3,3);
+
+  // Fonction utilitaire pour formater une combinaison linéaire
+  function formatVector(ix, iy) {
+    const parts = [];
+  
+    if (ix !== 0) {
+      parts.push(ix === 1 ? `\\vec{i}` : ix === -1 ? `-\\vec{i}` : `${ix}\\vec{i}`);
+    }
+  
+    if (iy !== 0) {
+      if (parts.length > 0) {
+        parts.push(iy > 0 ? `+ ${iy === 1 ? '\\vec{j}' : iy === -1 ? '-\\vec{j}' : `${iy}\\vec{j}`}` : 
+                   iy === -1 ? `- \\vec{j}` : `- ${-iy}\\vec{j}`);
+      } else {
+          parts.push(iy === 1 ? `\\vec{j}` : iy === -1 ? `-\\vec{j}` : `${iy}\\vec{j}`);
+      }
+    }
+  
+    // Si tout est nul
+    if (parts.length === 0) return `\\vec{0}`;
+  
+    return parts.join(' ');
+  }
+
+  const sumX = u4x + v4x;
+  const sumY = u4y + v4y;
+  const diffX = u4x - v4x;
+  const diffY = u4y - v4y;
+
+  pool.push({
+   q:`Soient les vecteurs \\(\\vec{u}\\binom{${u4x}}{${u4y}}\\) et \\(\\vec{v}\\binom{${v4x}}{${v4y}}\\) alors \\(\\vec{u} + \\vec{v} = \\)?`,
+   choices:[
+    `\\(${formatVector(sumX, sumY)}\\)`,
+    `\\(${formatVector(u4x * v4x, u4y * v4y)}\\)`,
+    `\\(${formatVector(diffX, diffY)}\\)`,
+    `\\(${formatVector(sumX, u4y * v4y)}\\)`
+   ],
+   correct:0,
+   explanation:`En effet, d'une part \\(\\vec{u} = ${formatVector(u4x, u4y)}\\) et d'autre part \\(\\vec{v} = ${formatVector(v4x, v4y)}\\).`
+  });
+
+  // Q17 - Égalité vectorielle → parallélogramme
+  const Ax = ri(-2,2), Ay = ri(-2,2);
+  const Bx = Ax + ri(1,3), By = Ay + ri(1,3);
+  const Dx = Ax + ri(1,3), Dy = Ay + ri(1,3);
+  const Cx = Bx + (Dx - Ax), Cy = By + (Dy - Ay);
+  pool.push({
+    q: `Soit un parallélogramme \\(ABCD\\) avec \\(A(${Ax};${Ay})\\), \\(B(${Bx};${By})\\), \\(D(${Dx};${Dy})\\). Quelles sont les coordonnées de \\(C\\) ?`,
+    choices: [
+      `\\((${Cx};${Cy})\\)`,
+      `\\((${Ax+Bx};${Ay+By})\\)`,
+      `\\((${Bx+Dx};${By+Dy})\\)`,
+      `\\((${Cx+1};${Cy+1})\\)`
+    ],
+    correct: 0,
+    explanation: `Dans un parallélogramme, \\(\\overrightarrow{AB} = \\overrightarrow{DC}\\) donc \\(C = B + \\overrightarrow{DC} = B + \\overrightarrow{AB} = (${Bx}+${Bx-Ax};${By}+${By-Ay}) = (${Cx};${Cy})\\).`
+  });
+
+  // Q18 - Déterminant non nul → non colinéaires
+  const u5x = ri(1,3), u5y = ri(1,3);
+  const v5x = u5x + 1, v5y = u5y + 1;
+  const det = u5x*v5y - u5y*v5x;
+  pool.push({
+    q: `Les vecteurs \\(\\vec{u}\\binom{${u5x}}{${u5y}}\\) et \\(\\vec{v}\\binom{${v5x}}{${v5y}}\\) sont-ils colinéaires ?`,
+    choices: [
+      `Non car \\(\\det(\\vec{u},\\vec{v}) = ${det} \\neq 0\\)`,
+      `Oui car \\(\\det(\\vec{u},\\vec{v}) = 0\\)`,
+      `Non car \\(\\det(\\vec{u},\\vec{v}) = 0\\)`,
+      `Oui car \\(\\det(\\vec{u},\\vec{v}) \\neq 0\\)`
+    ],
+    correct: 0,
+    explanation: `\\(\\det(\\vec{u},\\vec{v}) = ${u5x}\\times${v5y} - ${u5y}\\times${v5x} = ${det} \\neq 0\\) → non colinéaires.`
+  });
+
+  // Q19 - Lecture graphique interactive (canvas dynamique)
+  const q19Ax = ri(-3, 3);
+  const q19Ay = ri(-3, 3);
+  const q19Bx = q19Ax + ri(1, 4);
+  const q19By = q19Ay + ri(1, 4);
+  const q19Dx = q19Bx - q19Ax;
+  const q19Dy = q19By - q19Ay;
+
+  // Générer 3 mauvaises réponses plausibles
+  const wrongChoices = [
+    `\\(\\binom{${q19Dy}}{${q19Dx}}\\)`,  // inversé
+    `\\(\\binom{${-q19Dx}}{${-q19Dy}}\\)`, // opposé
+    `\\(\\binom{${q19Dx + 1}}{${q19Dy}}\\)` // décalé
+  ];
+  // Mélanger les choix
+  const allChoices = [
+    { text: `\\(\\binom{${q19Dx}}{${q19Dy}}\\)`, correct: true },
+    ...wrongChoices.map(t => ({ text: t, correct: false }))
+  ];
+  for (let i = allChoices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allChoices[i], allChoices[j]] = [allChoices[j], allChoices[i]];
+  }
+
+  // Fonction de dessin qui sera appelée avec l'ID du canvas
+  function drawQ19Canvas(canvasId, Ax, Ay, Bx, By) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    
+    // Forcer une taille explicite
+    const container = canvas.parentElement;
+    const W = container.clientWidth || 300;
+    const H = 250;
+    
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Déterminer l'échelle et l'origine
+    const margin = 40;
+    const allX = [Ax, Bx];
+    const allY = [Ay, By];
+    const minX = Math.min(...allX, -1);
+    const maxX = Math.max(...allX, 1);
+    const minY = Math.min(...allY, -1);
+    const maxY = Math.max(...allY, 1);
+    
+    const scaleX = (W - 2 * margin) / (maxX - minX);
+    const scaleY = (H - 2 * margin) / (maxY - minY);
+    const scale = Math.min(scaleX, scaleY, 50);
+    
+    const ox = margin - minX * scale;
+    const oy = H - margin + minY * scale;
+    
+    function toPx(x, y) {
+      return [ox + x * scale, oy - y * scale];
+    }
+    
+    // Effacer et dessiner le fond
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    
+    // Grille
+    ctx.strokeStyle = '#e2d5c0';
+    ctx.lineWidth = 0.5;
+    for (let x = Math.ceil(minX); x <= maxX; x++) {
+      const [px] = toPx(x, 0);
+      ctx.beginPath();
+      ctx.moveTo(px, margin);
+      ctx.lineTo(px, H - margin);
+      ctx.stroke();
+    }
+    for (let y = Math.ceil(minY); y <= maxY; y++) {
+      const [, py] = toPx(0, y);
+      ctx.beginPath();
+      ctx.moveTo(margin, py);
+      ctx.lineTo(W - margin, py);
+      ctx.stroke();
+    }
+    
+    // Axes
+    ctx.strokeStyle = '#1e1509';
+    ctx.lineWidth = 1.5;
+    const [ox0, oy0] = toPx(0, 0);
+    ctx.beginPath();
+    ctx.moveTo(margin, oy0);
+    ctx.lineTo(W - margin, oy0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ox0, margin);
+    ctx.lineTo(ox0, H - margin);
+    ctx.stroke();
+    
+    // Flèches des axes
+    ctx.fillStyle = '#1e1509';
+    ctx.beginPath();
+    ctx.moveTo(W - margin - 5, oy0 - 3);
+    ctx.lineTo(W - margin, oy0);
+    ctx.lineTo(W - margin - 5, oy0 + 3);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(ox0 - 3, margin + 5);
+    ctx.lineTo(ox0, margin);
+    ctx.lineTo(ox0 + 3, margin + 5);
+    ctx.fill();
+    
+    // Labels des axes
+    ctx.font = '10px Roboto Mono';
+    ctx.fillStyle = '#7a6748';
+    ctx.fillText('x', W - margin - 8, oy0 - 4);
+    ctx.fillText('y', ox0 + 8, margin + 4);
+    
+    // Point A
+    const [ax, ay] = toPx(Ax, Ay);
+    ctx.beginPath();
+    ctx.arc(ax, ay, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = '#c95f2a';
+    ctx.fill();
+    ctx.fillStyle = '#1e1509';
+    ctx.font = 'bold 12px Spectral';
+    ctx.fillText('A', ax - 10, ay - 6);
+    
+    // Point B
+    const [bx, by] = toPx(Bx, By);
+    ctx.beginPath();
+    ctx.arc(bx, by, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = '#1a5c8f';
+    ctx.fill();
+    ctx.fillStyle = '#1e1509';
+    ctx.fillText('B', bx + 8, by - 6);
+    
+    // Vecteur AB (flèche)
+    const angle = Math.atan2(by - ay, bx - ax);
+    const arrowSize = 12;
+    const headX = bx - arrowSize * Math.cos(angle);
+    const headY = by - arrowSize * Math.sin(angle);
+    
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(headX, headY);
+    ctx.strokeStyle = '#c95f2a';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx - arrowSize * Math.cos(angle - Math.PI / 6), by - arrowSize * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(bx - arrowSize * Math.cos(angle + Math.PI / 6), by - arrowSize * Math.sin(angle + Math.PI / 6));
+    ctx.fillStyle = '#c95f2a';
+    ctx.fill();
+  }
+
+  pool.push({
+    q: `Dans le repère ci-dessous, quelles sont les coordonnées du vecteur \\(\\overrightarrow{AB}\\) ?<br>
+        <div class="qcm-canvas-container" style="margin: 1rem 0; border: 1px solid var(--border); border-radius: 4px; background: white; min-height: 250px;">
+          <canvas style="width:100%; height:auto; background: white; display: block;"></canvas>
+        </div>`,
+    choices: allChoices.map(c => c.text),
+    correct: allChoices.findIndex(c => c.correct === true),
+    explanation: `\\(\\overrightarrow{AB} = (x_B - x_A \\; ; \\; y_B - y_A) = (${q19Bx} - ${q19Ax} \\; ; \\; ${q19By} - ${q19Ay}) = (${q19Dx} \\; ; \\; ${q19Dy})\\).`,
+    canvasCoords: { Ax: q19Ax, Ay: q19Ay, Bx: q19Bx, By: q19By },
+    drawCanvas: function(canvasId) {
+      drawQ19Canvas(canvasId, this.canvasCoords.Ax, this.canvasCoords.Ay, this.canvasCoords.Bx, this.canvasCoords.By);
+    }
+  });
+
+  // Q20 - Homothétie vectorielle
+  const hx = ri(-2,2), hy = ri(-2,2);
+  const k = ri(2,4);
+  const Mx = ri(-3,3), My = ri(-3,3);
+  const Mpx = hx + k*(Mx - hx);
+  const Mpy = hy + k*(My - hy);
+  pool.push({
+    q: `Soit l'homothétie de centre \\(\\Omega(${hx};${hy})\\) et de rapport \\(k = ${k}\\). L'image d'un point \\(M(${Mx};${My})\\) par cette homothétie a pour coordonnées :`,
+    choices: [
+      `\\((${Mpx};${Mpy})\\)`,
+      `\\((${hx + Mx};${hy + My})\\)`,
+      `\\((${k*Mx};${k*My})\\)`,
+      `\\((${Mx - hx};${My - hy})\\)`
+    ],
+    correct: 0,
+    explanation: `\\(\\overrightarrow{\\Omega M'} = k \\overrightarrow{\\Omega M}\\) donc \\(M' = \\Omega + k(M - \\Omega) = (${hx}+${k}(${Mx}-${hx}); ${hy}+${k}(${My}-${hy})) = (${Mpx};${Mpy})\\).`
+  });
+
+  // Tire exactement 10 questions et mélange leurs réponses
+  return shuffleArr(pool).slice(0,10).map(q=>{
     const idx=q.choices.map((c,i)=>({c,i}));
     for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
     return{...q,choices:idx.map(it=>it.c),correct:idx.findIndex(it=>it.i===q.correct)};
   });
 }
 
+/* Fisher-Yates sur le pool (ne touche pas aux choix, géré séparément) */
+function shuffleArr(a){
+  const b=[...a];
+  for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}
+  return b;
+}
+// kept for backwards compat with older code path
+function shuffle(a){return shuffleArr(a);}
+
+/* ── Rendu ── */
+/*
 function renderQ(q,idx){
   qT++;updQS();
   const card=document.createElement('div');card.className='qcm-q-card';
@@ -861,13 +1331,115 @@ function renderQ(q,idx){
   });
   card.appendChild(ch);return card;
 }
+*/ 
+function renderQ(q, idx) {
+  qT++;
+  updQS();
+  const card = document.createElement('div');
+  card.className = 'qcm-q-card';
+  const qEl = document.createElement('div');
+  qEl.className = 'qcm-q';
+  
+  // Générer un ID unique pour le canvas de cette question
+  const canvasId = `qcm-canvas-${idx}-${Date.now()}`;
+  
+  // Remplacer le canvas statique par un canvas avec ID dynamique
+  let qHtml = `<strong>${idx + 1}.</strong> ${q.q}`;
+  if (q.drawCanvas) {
+    // Remplacer le canvas par un canvas avec ID unique
+    qHtml = qHtml.replace(
+      /<canvas/g,
+      `<canvas id="${canvasId}"`
+    );
+  }
+  qEl.innerHTML = qHtml;
+  card.appendChild(qEl);
+  
+  // Si la question a un canvas à dessiner, on l'initialise après l'ajout au DOM
+  if (q.drawCanvas) {
+    // Utiliser requestAnimationFrame pour garantir que le DOM est prêt
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        q.drawCanvas(canvasId);
+      }, 50);
+    });
+  }
+  
+  const ch = document.createElement('div');
+  ch.className = 'qcm-choices';
+  q.choices.forEach((c, ci) => {
+    const btn = document.createElement('button');
+    btn.className = 'qcm-choice';
+    btn.innerHTML = c;
+    btn.onclick = () => ansQ(ci, q, card, ch);
+    ch.appendChild(btn);
+  });
+  card.appendChild(ch);
+  return card;
+}
+
 function ansQ(chosen,q,card,ch){
   ch.querySelectorAll('.qcm-choice').forEach(b=>b.disabled=true);
   const ok=chosen===q.correct;
   ch.querySelectorAll('.qcm-choice')[chosen].classList.add(ok?'correct':'wrong');
   if(!ok)ch.querySelectorAll('.qcm-choice')[q.correct].classList.add('correct');
   card.classList.add(ok?'answered-ok':'answered-ko');
-  if(ok)qS++;updQS();
+  if(ok)qS++;
+  qAnswered++;
+  updQS();
   const exp=document.createElement('div');exp.className='qcm-expl';
   exp.innerHTML=(ok?'✓ ':'✗ ')+q.explanation;card.appendChild(exp);rk(exp);
+  // Show final banner once all 10 answered
+  if(qAnswered===qT) showQCMResult();
+}
+
+/* ── Bilan final ── */
+function showQCMResult(){
+  const old=document.getElementById('qcm-result-banner');
+  if(old)old.remove();
+
+  const score=qS; // out of 10
+  let tier, emoji, title, body, btnLabel, btnColor;
+
+  if(score < 5){
+    tier='urgent';
+    emoji='📉';
+    title=`${score}/10 — Des bases à consolider en priorité`;
+    body=`Votre résultat révèle des lacunes importantes sur ce chapitre. Pour aborder la suite du programme sereinement et ne pas accumuler de retard, un accompagnement personnalisé s'impose dès maintenant. Un point de 30 minutes permettra de dresser un bilan précis et de mettre en place un plan de travail adapté.`;
+    btnLabel='Réserver un créneau de bilan — urgence';
+    btnColor='var(--red)';
+  } else if(score <= 7){
+    tier='moyen';
+    emoji='📈';
+    title=`${score}/10 — Un niveau intermédiaire à consolider`;
+    body=`Votre résultat est encourageant, mais quelques notions restent fragiles. Pour aborder la Première dans les meilleures conditions et transformer ces bases en vraie maîtrise, un suivi ciblé ferait toute la différence. Un point personnalisé permettra d'identifier précisément ce qui mérite d'être approfondi.`;
+    btnLabel='Réserver un créneau pour approfondir';
+    btnColor='var(--orange)';
+  } else {
+    tier='bon';
+    emoji='🎯';
+    title=`${score}/10 — Beau score… mais êtes-vous vraiment prêt ?`;
+    body=`Félicitations pour ce résultat ! Cependant, réussir un QCM à choix multiples est une chose ; résoudre un exercice à partir d'une feuille blanche, sans indication de réponse, en est une autre. Comment savoir si votre maîtrise tiendra face à un vrai problème de contrôle ? Un créneau d'évaluation à l'oral permettra de le vérifier — et de découvrir où progresser encore.`;
+    btnLabel='Évaluer mon vrai niveau — réserver un créneau';
+    btnColor='var(--green)';
+  }
+
+  const banner=document.createElement('div');
+  banner.id='qcm-result-banner';
+  banner.className='qcm-result-banner qcm-result-'+tier;
+  banner.innerHTML=`
+    <div class="qcm-result-inner">
+      <div class="qcm-result-emoji">${emoji}</div>
+      <div class="qcm-result-content">
+        <div class="qcm-result-title">${title}</div>
+        <div class="qcm-result-body">${body}</div>
+        <a class="qcm-result-btn" href="${CALENDLY_URL}" target="_blank" rel="noopener noreferrer"
+           style="background:${btnColor};">
+          📅 ${btnLabel}
+        </a>
+      </div>
+    </div>`;
+
+  document.getElementById('qcm-container').appendChild(banner);
+  banner.scrollIntoView({behavior:'smooth', block:'nearest'});
 }

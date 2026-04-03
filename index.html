@@ -12,12 +12,32 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="page">
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div class="chapter-tag">2<up>de</up> · Vecteurs · Accès sécurisé</div>
+    <h2><em>Vecteurs du</em> <strong>plan</strong></h2>
+    <p>Identifiez-vous pour accéder au cours interactif.</p>
+    <div class="auth-field">
+      <label>Prénom</label>
+      <input type="text" id="auth-name" placeholder="Votre prénom" autocomplete="given-name" autocapitalize="words">
+    </div>
+    <div class="auth-field">
+      <label>Mot de passe</label>
+      <input type="password" id="auth-pw" placeholder="••••••••••••••" autocomplete="current-password">
+    </div>
+    <button class="auth-btn" onclick="doAuth()">Accéder au cours →</button>
+    <div id="auth-error">Prénom ou mot de passe incorrect.</div>
+  </div>
+</div>
+
+<div class="page" id="main-page" style="display:none;">
 
 <header>
-  <div class="chapter-tag">Seconde · Chapitre G · Géométrie vectorielle</div>
-  <h1>Vecteurs du <em>Plan</em></h1>
-  <p>Translations · Direction · Norme · Base orthonormée · Colinéarité · Déterminant</p>
+  <div class="chapter-tag">Manipuler les vecteurs du plan</div>
+  <h1>Manipuler les vecteurs du plan</h1>
+  <p>Conforme au <a href="https://eduscol.education.gouv.fr/sites/default/files/document/spe631annexe1062957pdf-84144.pdf" target="_blank" rel="noopener noreferrer">programme de seconde</a></p>
 </header>
 
 <nav>
@@ -368,7 +388,10 @@
     <button class="chrono-btn" onclick="resetChrono()">↺ Remise à zéro</button>
   </div>
   <div class="qcm-header">
-    <div class="qcm-score" id="qcm-score">0 / 0</div>
+    <div>
+      <div class="qcm-score" id="qcm-score">0 / 0</div>
+      <div style="font-size:.72rem;color:var(--muted);font-family:'Roboto Mono',monospace;margin-top:.2rem;">10 questions · tirage aléatoire</div>
+    </div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
       <button class="btn" id="ctbtn" onclick="toggleChronoVis()">⏱ Afficher chronomètre</button>
       <button class="btn btn-primary" onclick="generateQCM()">Nouveau QCM ↻</button>
@@ -381,12 +404,12 @@
 <section id="contact">
   <div class="section-header">
     <span class="section-num">Contact</span>
-    <h2>Prendre rendez-vous</h2>
+    <h2>Espace parents</h2>
   </div>
   <div class="card card-orange" style="margin-bottom:1.25rem;">
     <h3>Restons en contact</h3>
-    <p>Une question sur ce cours, une erreur à signaler, ou envie d'un suivi personnalisé ?
-    Scanne le QR code qui te correspond.</p>
+    <p>Un retour sur ce cours ou une question concernant le suivi de votre enfant ?
+    Scannez le QR code ou cliquez sur le lien correspondant.</p>
   </div>
   <div class="contact-grid">
     <a class="contact-card cc-b"
@@ -394,40 +417,18 @@
        target="_blank" rel="noopener noreferrer">
       <div class="cc-icon">📋</div>
       <h4>Formulaire de retour</h4>
-      <p>Avis, erreur ou question.</p>
+      <p>Avis, question ou erreur à signaler.</p>
       <img class="cc-qr" loading="lazy" width="100" height="100"
            src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&color=1a5c8f&bgcolor=ffffff&data=https%3A%2F%2Fdocs.google.com%2Fforms%2Fd%2Fe%2F1FAIpQLSfiOvJG1wicFQY8EQufqy5YxGgTPSFPxdyb-OAtk95SUGxWFA%2Fviewform"
            alt="QR Formulaire">
       <span class="cc-lbl">Google Forms ↗</span>
-    </a>
-    <a class="contact-card cc-g"
-       href="https://calendly.com/didaskalosmanthanon/30min"
-       target="_blank" rel="noopener noreferrer">
-      <div class="cc-icon">🎓</div>
-      <h4>Élèves — 30 min</h4>
-      <p>Créneau individuel.</p>
-      <img class="cc-qr" loading="lazy" width="100" height="100"
-           src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&color=2e7d4f&bgcolor=ffffff&data=https%3A%2F%2Fcalendly.com%2Fdidaskalosmanthanon%2F30min"
-           alt="QR Élèves">
-      <span class="cc-lbl">Calendly ↗</span>
-    </a>
-    <a class="contact-card cc-y"
-       href="https://calendly.com/didaskalosmanthanon/appel-pro-formation-ou-collaboration-45-min"
-       target="_blank" rel="noopener noreferrer">
-      <div class="cc-icon">🏫</div>
-      <h4>Professeurs — 45 min</h4>
-      <p>Formation, collaboration.</p>
-      <img class="cc-qr" loading="lazy" width="100" height="100"
-           src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&color=b07020&bgcolor=ffffff&data=https%3A%2F%2Fcalendly.com%2Fdidaskalosmanthanon%2Fappel-pro-formation-ou-collaboration-45-min"
-           alt="QR Professeurs">
-      <span class="cc-lbl">Calendly ↗</span>
     </a>
     <a class="contact-card cc-r"
        href="https://calendly.com/didaskalosmanthanon/point-parents-presentation-de-l-outil-15-min"
        target="_blank" rel="noopener noreferrer">
       <div class="cc-icon">👨‍👩‍👧</div>
       <h4>Parents — 15 min</h4>
-      <p>Présentation &amp; suivi.</p>
+      <p>Point de suivi &amp; présentation de l'outil.</p>
       <img class="cc-qr" loading="lazy" width="100" height="100"
            src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&color=c95f2a&bgcolor=ffffff&data=https%3A%2F%2Fcalendly.com%2Fdidaskalosmanthanon%2Fpoint-parents-presentation-de-l-outil-15-min"
            alt="QR Parents">
@@ -438,7 +439,7 @@
 
 </main>
 <footer>Seconde · Manipuler les vecteurs du plan · page 9 du <a href="https://eduscol.education.fr/document/24553/download" target="_blank" rel="noopener noreferrer">programme officiel Éduscol</a></footer>
-</div>
+</div><!-- /.page#main-page -->
 
 <script src="script.js"></script>
 </body>
